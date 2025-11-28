@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Comparison Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .upload-section {
+            padding: 40px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .upload-form {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .file-input {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-label {
+            display: inline-block;
+            padding: 15px 30px;
+            background: white;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .file-label:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .file-label.has-file {
+            background: #667eea;
+            color: white;
+            border-style: solid;
+        }
+
+        .compare-btn {
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .compare-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+        }
+
+        .compare-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results-section {
+            padding: 40px;
+            display: none;
+        }
+
+        .results-section.active {
+            display: block;
+        }
+
+        .overall-score {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+        }
+
+        .overall-score h2 {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        .overall-score .score-label {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .control-group label {
+            font-weight: 500;
+        }
+
+        .control-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .document-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 1024px) {
+            .document-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .document-panel {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .document-panel-header {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .document-panel-content {
+            height: 600px;
+            overflow-y: auto;
+            padding: 20px;
+            background: white;
+            position: relative;
+        }
+
+        .document-panel-content pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+            line-height: 1.6;
+        }
+
+        .highlight {
+            padding: 2px 4px;
+            border-radius: 3px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .highlight:hover {
+            transform: scale(1.02);
+        }
+
+        .highlight.exact {
+            background-color: rgba(46, 204, 113, 0.3);
+            border-bottom: 2px solid #2ecc71;
+        }
+
+        .highlight.fuzzy {
+            background-color: rgba(241, 196, 15, 0.3);
+            border-bottom: 2px solid #f1c40f;
+        }
+
+        .highlight.semantic {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-bottom: 2px solid #3498db;
+        }
+
+        .matches-list {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .matches-list-header {
+            background: #f8f9fa;
+            padding: 15px;
+            font-weight: bold;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .matches-list-content {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .match-item {
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .match-item:hover {
+            background: #f8f9fa;
+        }
+
+        .match-item:last-child {
+            border-bottom: none;
+        }
+
+        .match-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .match-type {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .match-type.exact {
+            background: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+        }
+
+        .match-type.fuzzy {
+            background: rgba(241, 196, 15, 0.2);
+            color: #f39c12;
+        }
+
+        .match-type.semantic {
+            background: rgba(52, 152, 219, 0.2);
+            color: #3498db;
+        }
+
+        .match-score {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .match-text {
+            font-size: 0.9em;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .error-message {
+            margin: 20px 0;
+            padding: 15px;
+            background: #fee;
+            border-left: 4px solid #f00;
+            border-radius: 4px;
+            color: #c00;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 Document Comparison Tool</h1>
+            <p>Upload two documents to find matching sections using AI-powered comparison</p>
+        </div>
+
+        <div class="upload-section">
+            <form class="upload-form" id="compareForm">
+                <div class="file-input-wrapper">
+                    <input type="file" id="leftFile" name="left_file" class="file-input" accept=".pdf,.docx,.txt" required>
+                    <label for="leftFile" class="file-label" id="leftLabel">
+                        📎 Upload First Document
+                    </label>
+                </div>
+
+                <div class="file-input-wrapper">
+                    <input type="file" id="rightFile" name="right_file" class="file-input" accept=".pdf,.docx,.txt" required>
+                    <label for="rightFile" class="file-label" id="rightLabel">
+                        📎 Upload Second Document
+                    </label>
+                </div>
+
+                <button type="submit" class="compare-btn" id="compareBtn">
+                    🔍 Compare Documents
+                </button>
+            </form>
+            <div id="errorContainer"></div>
+        </div>
+
+        <div class="results-section" id="resultsSection">
+            <div class="overall-score">
+                <h2 id="overallScore">--</h2>
+                <div class="score-label">Overall Similarity Score</div>
+            </div>
+
+            <div class="stats" id="statsContainer"></div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <input type="checkbox" id="showExact" checked>
+                    <label for="showExact">Show Exact Matches</label>
+                </div>
+                <div class="control-group">
+                    <input type="checkbox" id="showFuzzy" checked>
+                    <label for="showFuzzy">Show Fuzzy Matches</label>
+                </div>
+                <div class="control-group">
+                    <input type="checkbox" id="showSemantic" checked>
+                    <label for="showSemantic">Show Semantic Matches</label>
+                </div>
+            </div>
+
+            <div class="document-container">
+                <div class="document-panel">
+                    <div class="document-panel-header">📝 First Document</div>
+                    <div class="document-panel-content">
+                        <pre id="leftDocument"></pre>
+                    </div>
+                </div>
+                <div class="document-panel">
+                    <div class="document-panel-header">📝 Second Document</div>
+                    <div class="document-panel-content">
+                        <pre id="rightDocument"></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="matches-list">
+                <div class="matches-list-header">
+                    🎯 Top Matches (Click to Navigate)
+                </div>
+                <div class="matches-list-content" id="matchesList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // File upload handlers
+        const leftFileInput = document.getElementById('leftFile');
+        const rightFileInput = document.getElementById('rightFile');
+        const leftLabel = document.getElementById('leftLabel');
+        const rightLabel = document.getElementById('rightLabel');
+
+        leftFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                leftLabel.textContent = '📄 ' + e.target.files[0].name;
+                leftLabel.classList.add('has-file');
+            }
+        });
+
+        rightFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                rightLabel.textContent = '📄 ' + e.target.files[0].name;
+                rightLabel.classList.add('has-file');
+            }
+        });
+
+        // Form submission
+        const compareForm = document.getElementById('compareForm');
+        const compareBtn = document.getElementById('compareBtn');
+        const resultsSection = document.getElementById('resultsSection');
+        const errorContainer = document.getElementById('errorContainer');
+
+        let leftDocumentText = '';
+        let rightDocumentText = '';
+        let currentMatches = [];
+
+        compareForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(compareForm);
+            errorContainer.innerHTML = '';
+            compareBtn.disabled = true;
+            compareBtn.innerHTML = '<span class="spinner"></span> Comparing...';
+            resultsSection.classList.remove('active');
+
+            try {
+                const response = await fetch('/api/compare/', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Comparison failed');
+                }
+
+                // Store data
+                leftDocumentText = formData.get('left_file').text ? 
+                    await formData.get('left_file').text() : '';
+                rightDocumentText = formData.get('right_file').text ? 
+                    await formData.get('right_file').text() : '';
+                currentMatches = data.matches || [];
+
+                // Display results
+                displayResults(data);
+                
+            } catch (error) {
+                errorContainer.innerHTML = 
+                    `<div class="error-message">${error.message}</div>`;
+            } finally {
+                compareBtn.disabled = false;
+                compareBtn.innerHTML = '🔍 Compare Documents';
+            }
+        });
+
+        function displayResults(data) {
+            // Overall score
+            document.getElementById('overallScore').textContent = 
+                (data.overall_score * 100).toFixed(1) + '%';
+
+            // Stats
+            const statsContainer = document.getElementById('statsContainer');
+            statsContainer.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${data.stats.left_word_count || 0}</div>
+                    <div class="stat-label">Left Document Words</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${data.stats.right_word_count || 0}</div>
+                    <div class="stat-label">Right Document Words</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${data.stats.total_matches || 0}</div>
+                    <div class="stat-label">Total Matches Found</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${data.matches?.length || 0}</div>
+                    <div class="stat-label">Top Matches Shown</div>
+                </div>
+            `;
+
+            // Display matches and documents with highlighting
+            displayMatches(data.matches, data.left_text || '', data.right_text || '');
+            
+            resultsSection.classList.add('active');
+        }
+
+        function displayMatches(matches, leftText, rightText) {
+            const matchesList = document.getElementById('matchesList');
+            const leftDoc = document.getElementById('leftDocument');
+            const rightDoc = document.getElementById('rightDocument');
+
+            // Clear previous content
+            leftDoc.innerHTML = '';
+            rightDoc.innerHTML = '';
+            matchesList.innerHTML = '';
+
+            if (!matches || matches.length === 0) {
+                matchesList.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No matches found</div>';
+                // Show plain text if no matches
+                leftDoc.textContent = leftText || 'No content available';
+                rightDoc.textContent = rightText || 'No content available';
+                return;
+            }
+
+            // Create HTML for matches list
+            matches.forEach((match, index) => {
+                const matchItem = document.createElement('div');
+                matchItem.className = 'match-item';
+                matchItem.dataset.index = index;
+                
+                matchItem.innerHTML = `
+                    <div class="match-header">
+                        <span class="match-type ${match.type}">${match.type}</span>
+                        <span class="match-score">Score: ${(match.score * 100).toFixed(1)}%</span>
+                    </div>
+                    <div class="match-text">${match.left_text.substring(0, 150)}${match.left_text.length > 150 ? '...' : ''}</div>
+                `;
+
+                matchItem.addEventListener('click', () => {
+                    scrollToMatch(index);
+                });
+
+                matchesList.appendChild(matchItem);
+            });
+
+            // Display documents with highlights
+            if (leftText) {
+                leftDoc.textContent = leftText;
+            } else {
+                leftDoc.textContent = 'No content extracted from document.';
+            }
+            
+            if (rightText) {
+                rightDoc.textContent = rightText;
+            } else {
+                rightDoc.textContent = 'No content extracted from document.';
+            }
+        }
+
+        function scrollToMatch(index) {
+            // This would scroll to the match in both documents
+            // For now, just highlight the clicked match
+            const matchItems = document.querySelectorAll('.match-item');
+            matchItems.forEach((item, i) => {
+                if (i === index) {
+                    item.style.background = '#e3f2fd';
+                } else {
+                    item.style.background = '';
+                }
+            });
+        }
+
+        // Filter matches by type
+        const showExact = document.getElementById('showExact');
+        const showFuzzy = document.getElementById('showFuzzy');
+        const showSemantic = document.getElementById('showSemantic');
+
+        [showExact, showFuzzy, showSemantic].forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                // Reload matches with filters
+                // This is a simplified version - in production you'd actually filter
+                console.log('Match filters updated');
+            });
+        });
+    </script>
+</body>
+</html>
+
